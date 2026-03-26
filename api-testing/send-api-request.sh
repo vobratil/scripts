@@ -37,7 +37,7 @@ if [[ "$QUERY" == cpe* ]]; then
 elif [[ "$QUERY" == purl* ]] || [[ "$QUERY" == name* ]]; then
     FINAL_URL="$SERVER_URL$ENDPOINT?q=$QUERY"
 else
-    FINAL_URL="$SERVER_URL$ENDPOINT$QUERY"
+    FINAL_URL="$SERVER_URL$ENDPOINT/$QUERY"
 fi
 
 # Get the directory of this script
