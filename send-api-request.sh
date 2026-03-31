@@ -12,7 +12,8 @@ fi
 SERVER_URL="$1"
 ENDPOINT="$2"
 QUERY="$3"
-GET_TOKEN_SCRIPT_PATH="${4:-../../tpa-qe-ci/scripts/get-token.sh}"
+ADDITIONAL_PARAMETERS="$4"
+GET_TOKEN_SCRIPT_PATH="${5:-../../tpa-qe-ci/scripts/get-token.sh}"
 
 # Check if required environment variables are defined
 if [[ -z "$CLIENT_ID" ]] || [[ -z "$CLIENT_SECRET" ]]; then
@@ -33,11 +34,11 @@ echo "Encoded QUERY: $QUERY"
 
 # Build the final URL based on QUERY parameter
 if [[ "$QUERY" == cpe* ]]; then
-    FINAL_URL="$SERVER_URL$ENDPOINT/$QUERY"
+    FINAL_URL="$SERVER_URL$ENDPOINT/$QUERY$ADDITIONAL_PARAMETERS"
 elif [[ "$QUERY" == purl* ]] || [[ "$QUERY" == name* ]]; then
-    FINAL_URL="$SERVER_URL$ENDPOINT?q=$QUERY"
+    FINAL_URL="$SERVER_URL$ENDPOINT?q=$QUERY$ADDITIONAL_PARAMETERS"
 else
-    FINAL_URL="$SERVER_URL$ENDPOINT/$QUERY"
+    FINAL_URL="$SERVER_URL$ENDPOINT/$QUERY$ADDITIONAL_PARAMETERS"
 fi
 
 # Get the directory of this script
