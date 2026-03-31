@@ -16,14 +16,14 @@ ADDITIONAL_PARAMETERS="$4"
 GET_TOKEN_SCRIPT_PATH="${5:-../tpa-qe-ci/scripts/get-token.sh}"
 
 # Check if required environment variables are defined
-if [[ -z "$CLIENT_ID" ]] || [[ -z "$CLIENT_SECRET" ]]; then
-    echo "Error: CLIENT_ID and/or CLIENT_SECRET environment variables are not defined"
+if [[ -z "$PLAYWRIGHT_AUTH_CLIENT_ID" ]] || [[ -z "$PLAYWRIGHT_AUTH_CLIENT_SECRET" ]]; then
+    echo "Error: PLAYWRIGHT_AUTH_CLIENT_ID and/or PLAYWRIGHT_AUTH_CLIENT_SECRET environment variables are not defined."
     exit 1
 fi
 
 # Source the token script if it exists
 if [[ -f "$GET_TOKEN_SCRIPT_PATH" ]]; then
-    TOKEN=$(source "$GET_TOKEN_SCRIPT_PATH" "$SERVER_URL" "$CLIENT_ID" "$CLIENT_SECRET" 2>/dev/null | tail -n 1)
+    TOKEN=$(source "$GET_TOKEN_SCRIPT_PATH" "$SERVER_URL" "$PLAYWRIGHT_AUTH_CLIENT_ID" "$PLAYWRIGHT_AUTH_CLIENT_SECRET" 2>/dev/null | tail -n 1)
 else
     echo "Warning: Token script not found at $GET_TOKEN_SCRIPT_PATH"
 fi
