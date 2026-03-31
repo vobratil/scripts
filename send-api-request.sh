@@ -13,7 +13,7 @@ SERVER_URL="$1"
 ENDPOINT="$2"
 QUERY="$3"
 ADDITIONAL_PARAMETERS="$4"
-GET_TOKEN_SCRIPT_PATH="${5:-../../tpa-qe-ci/scripts/get-token.sh}"
+GET_TOKEN_SCRIPT_PATH="${5:-../tpa-qe-ci/scripts/get-token.sh}"
 
 # Check if required environment variables are defined
 if [[ -z "$CLIENT_ID" ]] || [[ -z "$CLIENT_SECRET" ]]; then
@@ -29,8 +29,10 @@ else
 fi
 
 # URL encode the query
-QUERY=$(echo "$QUERY" | jq -Rr @uri)
-echo "Encoded QUERY: $QUERY"
+if [[ "$QUERY" == cpe* ]] || [[ "$QUERY" == purl* ]] || [[ "$QUERY" == name* ]]; then
+    QUERY=$(echo "$QUERY" | jq -Rr @uri)
+fi    
+echo "QUERY: $QUERY"
 
 # Build the final URL based on QUERY parameter
 if [[ "$QUERY" == cpe* ]]; then
@@ -38,8 +40,10 @@ if [[ "$QUERY" == cpe* ]]; then
 elif [[ "$QUERY" == purl* ]] || [[ "$QUERY" == name* ]]; then
     FINAL_URL="$SERVER_URL$ENDPOINT?q=$QUERY$ADDITIONAL_PARAMETERS"
 else
-    FINAL_URL="$SERVER_URL$ENDPOINT/$QUERY$ADDITIONAL_PARAMETERS"
+    FINAL_URL="$SERVER_URL$ENDPOINT$QUERY$ADDITIONAL_PARAMETERS"
 fi
+
+echo "FINAL_URL: $FINAL_URL"
 
 # Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
