@@ -23,7 +23,8 @@ fi
 
 # Source the token script if it exists
 if [[ -f "$GET_TOKEN_SCRIPT_PATH" ]]; then
-    TOKEN=$(source "$GET_TOKEN_SCRIPT_PATH" "$SERVER_URL" "$PLAYWRIGHT_AUTH_CLIENT_ID" "$PLAYWRIGHT_AUTH_CLIENT_SECRET" 2>/dev/null | tail -n 1)
+    TOKEN=$(source "$GET_TOKEN_SCRIPT_PATH" "$SERVER_URL" "$PLAYWRIGHT_AUTH_CLIENT_ID" "$PLAYWRIGHT_AUTH_CLIENT_SECRET" | tail -n 1)
+    echo "TOKEN: $TOKEN"
 else
     echo "Warning: Token script not found at $GET_TOKEN_SCRIPT_PATH"
 fi

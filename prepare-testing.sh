@@ -26,6 +26,7 @@ else
 fi
 
 # Get API URL from SERVER_URL
+SERVER_URL="${SERVER_URL#https://}"
 API_URL="${SERVER_URL%/*}" # Remove everything after last slash
 API_URL="${API_URL/*apps/api}" # Replace 'apps' and everything left of it with 'api'
 API_URL="${API_URL}:6443" # Add port 6443
@@ -37,9 +38,10 @@ PROJECT="${SERVER_URL#*server-}" # Remove everything up to and including 'server
 PROJECT="${PROJECT%%.*}" # Remove everything from the next dot onward
 # echo "PROJECT: $PROJECT"
 
-# oc login "$SERVER_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true 2>/dev/null
-oc login "$API_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true 2>/dev/null
+oc login "$SERVER_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true 2>/dev/null
+# oc login "$API_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true
 oc project "$PROJECT" 2>/dev/null
+# oc project "$PROJECT"
 OIDC_OUTPUT=$(oc get secret oidc-cli -o json | jq -r '.data | to_entries | map( (.key|sub("[.-]"; "_")) + "=" + (.value | @base64d) )[]')
 
 # Set the variables
@@ -53,7 +55,7 @@ export PLAYWRIGHT_AUTH_USER
 PLAYWRIGHT_AUTH_PASSWORD="$PLAYWRIGHT_PASSWORD"
 export PLAYWRIGHT_AUTH_PASSWORD
 PLAYWRIGHT_AUTH_CLIENT_ID=$(echo "$OIDC_OUTPUT" | sed -n '1p' | sed 's/^[^=]*=//')
-SECOND_LINE=$(echo "$OIDC_OUTPUT" | sed -n '2p' | sed 's/^[^=]*//')
+SECOND_LINE=$(echo "$OIDC_OUTPUT" | sed -n '2p' | sed 's/^[^=]*=//')
 if [[ -z "$SECOND_LINE" ]]; then
     PLAYWRIGHT_AUTH_CLIENT_SECRET=$(echo "$OIDC_OUTPUT" | sed -n '3p' | sed 's/^[^=]*=//')
 else
