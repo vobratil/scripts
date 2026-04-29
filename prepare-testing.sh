@@ -26,8 +26,8 @@ else
 fi
 
 # Get API URL from SERVER_URL
-SERVER_URL="${SERVER_URL#https://}"
-API_URL="${SERVER_URL%/*}" # Remove everything after last slash
+API_URL="${SERVER_URL#https://}"
+API_URL="${API_URL%/*}" # Remove everything after last slash
 API_URL="${API_URL/*apps/api}" # Replace 'apps' and everything left of it with 'api'
 API_URL="${API_URL}:6443" # Add port 6443
 # echo "API_URL: $API_URL"
