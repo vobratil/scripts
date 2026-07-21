@@ -38,7 +38,7 @@ PROJECT="${SERVER_URL#*server-}" # Remove everything up to and including 'server
 PROJECT="${PROJECT%%.*}" # Remove everything from the next dot onward
 # echo "PROJECT: $PROJECT"
 
-oc login "$SERVER_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true 2>/dev/null
+oc login "$API_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true 2>/dev/null
 # oc login "$API_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true
 oc project "$PROJECT" 2>/dev/null
 # oc project "$PROJECT"

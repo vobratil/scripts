@@ -9,6 +9,22 @@ server_url=${2}
 product_cpe=${3}
 no_of_descendants=${4:-10}
 
+obtain_token() {
+    if [[ "$SERVER_URL" == *"atlas"* ]]; then
+        echo "Obtaining API token from script: $TOKEN_SCRIPT_PATH"
+        if [[ ! -f "$TOKEN_SCRIPT_PATH" ]]; then
+            echo "Error: Token script '$TOKEN_SCRIPT_PATH' does not exist"
+            exit 1
+        fi
+        API_TOKEN=$(bash "$TOKEN_SCRIPT_PATH" 2>/dev/null | tail -n1)
+        if [[ -z "$API_TOKEN" ]]; then
+            echo "Error: Failed to obtain API token from script"
+            exit 1
+        fi
+        echo "API token obtained successfully"
+    fi
+}
+
 # Validate required parameters
 if [[ -z "$api_token" || -z "$server_url" || -z "$product_cpe" ]]; then
     echo "Usage: $0 <api_token> <server_url> <product_cpe> [no_of_descendants]"
