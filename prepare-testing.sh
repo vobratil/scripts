@@ -25,24 +25,28 @@ else
     PLAYWRIGHT_PASSWORD="Admin@123"
 fi
 
-# Get API URL from SERVER_URL
-API_URL="${SERVER_URL#https://}"
-API_URL="${API_URL%/*}" # Remove everything after last slash
-API_URL="${API_URL/*apps/api}" # Replace 'apps' and everything left of it with 'api'
-API_URL="${API_URL}:6443" # Add port 6443
-# echo "API_URL: $API_URL"
+# Only get the OIDC client and secret if SERVER_URL is set and CONSOLE_PASSWORD is provided
+if [[ $# -gt 1 ]]; then
 
-# Get project from SERVER_URL
-# Extract the part after 'server-' and remove everything after the next dot
-PROJECT="${SERVER_URL#*server-}" # Remove everything up to and including 'server-'
-PROJECT="${PROJECT%%.*}" # Remove everything from the next dot onward
-# echo "PROJECT: $PROJECT"
+    # Get API URL from SERVER_URL
+    API_URL="${SERVER_URL#https://}"
+    API_URL="${API_URL%/*}" # Remove everything after last slash
+    API_URL="${API_URL/*apps/api}" # Replace 'apps' and everything left of it with 'api'
+    API_URL="${API_URL}:6443" # Add port 6443
+    # echo "API_URL: $API_URL"
 
-oc login "$API_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true 2>/dev/null
-# oc login "$API_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true
-oc project "$PROJECT" 2>/dev/null
-# oc project "$PROJECT"
-OIDC_OUTPUT=$(oc get secret oidc-cli -o json | jq -r '.data | to_entries | map( (.key|sub("[.-]"; "_")) + "=" + (.value | @base64d) )[]')
+    # Get project from SERVER_URL
+    # Extract the part after 'server-' and remove everything after the next dot
+    PROJECT="${SERVER_URL#*server-}" # Remove everything up to and including 'server-'
+    PROJECT="${PROJECT%%.*}" # Remove everything from the next dot onward
+    # echo "PROJECT: $PROJECT"
+
+    oc login "$API_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true 2>/dev/null
+    # oc login "$API_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true
+    oc project "$PROJECT" 2>/dev/null
+    # oc project "$PROJECT"
+    OIDC_OUTPUT=$(oc get secret oidc-cli -o json | jq -r '.data | to_entries | map( (.key|sub("[.-]"; "_")) + "=" + (.value | @base64d) )[]')
+fi
 
 # Set the variables
 TRUSTIFY_UI_URL=$SERVER_URL
