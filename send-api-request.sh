@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Script to send an API request with Authorization header
-# Usage: ./send-api-request.sh <SERVER_URL> <ENDPOINT> <QUERY> [ADDITIONAL_PARAMETERS]
+# Usage: ./send-api-request.sh <SERVER_URL> <ENDPOINT> <QUERY> [ADDITIONAL_PARAMETERS] [HTTP_METHOD]
 
 if [[ $# -lt 3 ]]; then
     echo "Error: Missing required parameters"
-    echo "Usage: $0 <SERVER_URL> <ENDPOINT> <QUERY> [ADDITIONAL_PARAMETERS]"
+    echo "Usage: $0 <SERVER_URL> <ENDPOINT> <QUERY> [ADDITIONAL_PARAMETERS] [HTTP_METHOD]"
     exit 1
 fi
 
@@ -13,6 +13,7 @@ SERVER_URL="$1"
 ENDPOINT="$2"
 QUERY="$3"
 ADDITIONAL_PARAMETERS="$4"
+HTTP_METHOD="${5:-GET}"
 
 # Check if required environment variables are defined
 if [[ -z "$PLAYWRIGHT_AUTH_CLIENT_ID" ]] || [[ -z "$PLAYWRIGHT_AUTH_CLIENT_SECRET" ]]; then
@@ -88,7 +89,7 @@ TARGET_DIR="$SCRIPT_DIR/target"
 mkdir -p "$TARGET_DIR"
 
 # Send the API request with Authorization header and save response
-RESPONSE=$(curl --header "Authorization: Bearer ${TOKEN}" "$FINAL_URL" | jq '.')
+RESPONSE=$(curl -X "$HTTP_METHOD" --header "Authorization: Bearer ${TOKEN}" "$FINAL_URL" | jq '.')
 
 # Display the response and save to file
 echo "$RESPONSE"
