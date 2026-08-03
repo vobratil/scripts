@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Script to send an API request with Authorization header
-# Usage: ./send-api-request.sh <SERVER_URL> <ENDPOINT> <QUERY> [GET_TOKEN_SCRIPT_PATH]
+# Usage: ./send-api-request.sh <SERVER_URL> <ENDPOINT> <QUERY> [ADDITIONAL_PARAMETERS]
 
 if [[ $# -lt 3 ]]; then
     echo "Error: Missing required parameters"
-    echo "Usage: $0 <SERVER_URL> <ENDPOINT> <QUERY> [GET_TOKEN_SCRIPT_PATH]"
+    echo "Usage: $0 <SERVER_URL> <ENDPOINT> <QUERY> [ADDITIONAL_PARAMETERS]"
     exit 1
 fi
 
@@ -13,7 +13,6 @@ SERVER_URL="$1"
 ENDPOINT="$2"
 QUERY="$3"
 ADDITIONAL_PARAMETERS="$4"
-GET_TOKEN_SCRIPT_PATH="${5:-../tpa-qe-ci/scripts/get-token.sh}"
 
 # Check if required environment variables are defined
 if [[ -z "$PLAYWRIGHT_AUTH_CLIENT_ID" ]] || [[ -z "$PLAYWRIGHT_AUTH_CLIENT_SECRET" ]]; then
@@ -21,13 +20,48 @@ if [[ -z "$PLAYWRIGHT_AUTH_CLIENT_ID" ]] || [[ -z "$PLAYWRIGHT_AUTH_CLIENT_SECRE
     exit 1
 fi
 
-# Source the token script if it exists
-if [[ -f "$GET_TOKEN_SCRIPT_PATH" ]]; then
-    TOKEN=$(source "$GET_TOKEN_SCRIPT_PATH" "$SERVER_URL" "$PLAYWRIGHT_AUTH_CLIENT_ID" "$PLAYWRIGHT_AUTH_CLIENT_SECRET" | tail -n 1)
-    echo "TOKEN: $TOKEN"
+# Determine auth URL: use PLAYWRIGHT_AUTH_URL if set, otherwise discover from the server's index.html
+if [[ -n "$PLAYWRIGHT_AUTH_URL" ]]; then
+    AUTH_URL="$PLAYWRIGHT_AUTH_URL"
 else
-    echo "Warning: Token script not found at $GET_TOKEN_SCRIPT_PATH"
+    echo "PLAYWRIGHT_AUTH_URL not set. Discovering OIDC server URL from $SERVER_URL..."
+    INDEX_HTML=$(curl -sk "$SERVER_URL")
+    SERVER_CONFIG=$(echo "$INDEX_HTML" | grep -oP 'window\._env\s*=\s*"\K[^"]+')
+    if [[ -z "$SERVER_CONFIG" ]]; then
+        echo "Error: Could not extract window._env from $SERVER_URL"
+        exit 1
+    fi
+    AUTH_URL=$(echo "$SERVER_CONFIG" | base64 -d | jq -r '.OIDC_SERVER_URL')
+    if [[ -z "$AUTH_URL" ]] || [[ "$AUTH_URL" == "null" ]]; then
+        echo "Error: Could not discover OIDC_SERVER_URL from server config"
+        exit 1
+    fi
 fi
+
+echo "Auth URL: $AUTH_URL"
+
+# Discover the token endpoint via OIDC well-known configuration
+TOKEN_ENDPOINT=$(curl -sk "${AUTH_URL}/.well-known/openid-configuration" | jq -r '.token_endpoint')
+if [[ -z "$TOKEN_ENDPOINT" ]] || [[ "$TOKEN_ENDPOINT" == "null" ]]; then
+    echo "Error: Could not discover token endpoint from ${AUTH_URL}/.well-known/openid-configuration"
+    exit 1
+fi
+
+echo "Token endpoint: $TOKEN_ENDPOINT"
+
+# Request token using client credentials grant
+TOKEN_RESPONSE=$(curl -sk -X POST "$TOKEN_ENDPOINT" \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    -d "grant_type=client_credentials&client_id=${PLAYWRIGHT_AUTH_CLIENT_ID}&client_secret=${PLAYWRIGHT_AUTH_CLIENT_SECRET}")
+
+TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
+if [[ -z "$TOKEN" ]] || [[ "$TOKEN" == "null" ]]; then
+    echo "Error: Failed to retrieve access token"
+    echo "Response: $TOKEN_RESPONSE"
+    exit 1
+fi
+
+echo "TOKEN: $TOKEN"
 
 # URL encode the query
 if [[ "$QUERY" == cpe* ]] || [[ "$QUERY" == purl* ]] || [[ "$QUERY" == name* ]]; then
