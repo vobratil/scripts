@@ -2,6 +2,63 @@
 
 # Usage: source ./prepare-testing.sh [SERVER_URL] [CONSOLE_PASSWORD] [-o]
 
+get_client_id_and_secret() {
+    OIDC_RAW=$(oc get secret oidc-cli -o json 2>&1)
+    if echo "$OIDC_RAW" | grep -q 'Error from server (NotFound): secrets "oidc-cli" not found'; then
+        OIDC_OUTPUT="$OIDC_RAW"
+    else
+        OIDC_OUTPUT=$(echo "$OIDC_RAW" | jq -r '.data | to_entries | map( (.key|sub("[.-]"; "_")) + "=" + (.value | @base64d) )[]')
+    fi
+    if echo "$OIDC_OUTPUT" | grep -q 'Error from server (NotFound): secrets "oidc-cli" not found'; then
+        echo "oidc-cli secret not found in OpenShift. Attempting to discover credentials from AWS Cognito..."
+
+        AWS_REGIONS=$(aws ec2 describe-regions --region us-east-1 --query 'Regions[].RegionName' --output text 2>/dev/null)
+        if [[ -z "$AWS_REGIONS" ]]; then
+            echo "Error: Could not retrieve AWS regions. Ensure the aws CLI is configured correctly."
+            OIDC_OUTPUT=""
+        else
+            COGNITO_POOL_ID=""
+            COGNITO_REGION=""
+
+            for REGION in $AWS_REGIONS; do
+                POOL_ID=$(aws cognito-idp list-user-pools --max-results 60 --region "$REGION" \
+                    --query "UserPools[?contains(Name, '${PROJECT}')].Id" --output text 2>/dev/null)
+                if [[ -n "$POOL_ID" ]] && [[ "$POOL_ID" != "None" ]]; then
+                    COGNITO_POOL_ID="$POOL_ID"
+                    COGNITO_REGION="$REGION"
+                    break
+                fi
+            done
+
+            if [[ -z "$COGNITO_POOL_ID" ]]; then
+                echo "Error: Could not find a Cognito user pool matching project '${PROJECT}' in any AWS region."
+                OIDC_OUTPUT=""
+            else
+                echo "Found Cognito user pool '${COGNITO_POOL_ID}' in region '${COGNITO_REGION}'."
+
+                CLIENT_ID=$(aws cognito-idp list-user-pool-clients \
+                    --user-pool-id "$COGNITO_POOL_ID" --region "$COGNITO_REGION" \
+                    --query 'UserPoolClients[0].ClientId' --output text 2>/dev/null)
+                if [[ -z "$CLIENT_ID" ]] || [[ "$CLIENT_ID" == "None" ]]; then
+                    echo "Error: Could not find any app clients in user pool '${COGNITO_POOL_ID}'."
+                    OIDC_OUTPUT=""
+                else
+                    CLIENT_SECRET=$(aws cognito-idp describe-user-pool-client \
+                        --user-pool-id "$COGNITO_POOL_ID" --client-id "$CLIENT_ID" \
+                        --region "$COGNITO_REGION" \
+                        --query 'UserPoolClient.ClientSecret' --output text 2>/dev/null)
+                    if [[ -z "$CLIENT_SECRET" ]] || [[ "$CLIENT_SECRET" == "None" ]]; then
+                        echo "Error: Could not retrieve the client secret for client '${CLIENT_ID}'."
+                        OIDC_OUTPUT=""
+                    else
+                        OIDC_OUTPUT="client_id=${CLIENT_ID}"$'\n'"client_secret=${CLIENT_SECRET}"
+                    fi
+                fi
+            fi
+        fi
+    fi
+}
+
 # Get some of the variables from parameters
 if [[ $# -lt 1 ]]; then
     echo "Info: SERVER_URL not set. Assuming local testing."
@@ -39,13 +96,12 @@ if [[ $# -gt 1 ]]; then
     # Extract the part after 'server-' and remove everything after the next dot
     PROJECT="${SERVER_URL#*server-}" # Remove everything up to and including 'server-'
     PROJECT="${PROJECT%%.*}" # Remove everything from the next dot onward
-    # echo "PROJECT: $PROJECT"
 
+    # Attempt to get the OIDC client and secret from the OpenShift cluster.
+    # If this fails, attempt to get the OIDC client and secret from AWS Cognito.
     oc login "$API_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true 2>/dev/null
-    # oc login "$API_URL" -u kubeadmin -p "$CONSOLE_PASSWORD" --insecure-skip-tls-verify=true
     oc project "$PROJECT" 2>/dev/null
-    # oc project "$PROJECT"
-    OIDC_OUTPUT=$(oc get secret oidc-cli -o json | jq -r '.data | to_entries | map( (.key|sub("[.-]"; "_")) + "=" + (.value | @base64d) )[]')
+    get_client_id_and_secret
 fi
 
 # Set the variables

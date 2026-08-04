@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Script to send an API request with Authorization header
+# Script that helps send API requests to TPA instances.
+# It takes care of authentication, URL encoding and results processing.
 # Usage: ./send-api-request.sh <SERVER_URL> <ENDPOINT> <QUERY> [ADDITIONAL_PARAMETERS] [HTTP_METHOD]
 
 if [[ $# -lt 3 ]]; then
