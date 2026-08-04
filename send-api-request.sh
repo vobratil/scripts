@@ -2,11 +2,26 @@
 
 # Script that helps send API requests to TPA instances.
 # It takes care of authentication, URL encoding and results processing.
-# Usage: ./send-api-request.sh <SERVER_URL> <ENDPOINT> <QUERY> [ADDITIONAL_PARAMETERS] [HTTP_METHOD]
+# Usage: ./send-api-request.sh [-m HTTP_METHOD] [-c CONTENT_TYPE] [-p PARAM]... <SERVER_URL> <ENDPOINT> <QUERY> [ADDITIONAL_PARAMETERS]
+
+HTTP_METHOD="GET"
+CONTENT_TYPE=""
+BODY_PARAMS=()
+
+while getopts ":m:c:p:" opt; do
+    case $opt in
+        m) HTTP_METHOD="$OPTARG" ;;
+        c) CONTENT_TYPE="$OPTARG" ;;
+        p) BODY_PARAMS+=("$OPTARG") ;;
+        :) echo "Error: -$OPTARG requires an argument"; exit 1 ;;
+        \?) echo "Error: Unknown flag -$OPTARG"; exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
 
 if [[ $# -lt 3 ]]; then
     echo "Error: Missing required parameters"
-    echo "Usage: $0 <SERVER_URL> <ENDPOINT> <QUERY> [ADDITIONAL_PARAMETERS] [HTTP_METHOD]"
+    echo "Usage: $0 [-m HTTP_METHOD] [-c CONTENT_TYPE] [-p PARAM]... <SERVER_URL> <ENDPOINT> <QUERY> [ADDITIONAL_PARAMETERS]"
     exit 1
 fi
 
@@ -14,7 +29,6 @@ SERVER_URL="$1"
 ENDPOINT="$2"
 QUERY="$3"
 ADDITIONAL_PARAMETERS="$4"
-HTTP_METHOD="${5:-GET}"
 
 # Check if required environment variables are defined
 if [[ -z "$PLAYWRIGHT_AUTH_CLIENT_ID" ]] || [[ -z "$PLAYWRIGHT_AUTH_CLIENT_SECRET" ]]; then
@@ -66,7 +80,7 @@ fi
 echo "TOKEN: $TOKEN"
 
 # URL encode the query
-if [[ "$QUERY" == cpe* ]] || [[ "$QUERY" == purl* ]] || [[ "$QUERY" == name* ]]; then
+if [[ "$QUERY" == cpe* ]] || [[ "$QUERY" == purl* ]] || [[ "$QUERY" == name* ]] || [[ "$QUERY" == urn:uuid* ]]; then
     QUERY=$(echo "$QUERY" | jq -Rr @uri)
 fi    
 echo "QUERY: $QUERY"
@@ -90,7 +104,17 @@ TARGET_DIR="$SCRIPT_DIR/target"
 mkdir -p "$TARGET_DIR"
 
 # Send the API request with Authorization header and save response
-RESPONSE=$(curl -X "$HTTP_METHOD" --header "Authorization: Bearer ${TOKEN}" "$FINAL_URL" | jq '.')
+CONTENT_TYPE_HEADER=()
+if [[ -n "$CONTENT_TYPE" ]]; then
+    CONTENT_TYPE_HEADER=(--header "Content-Type: $CONTENT_TYPE")
+fi
+
+BODY_PARAM_ARGS=()
+for param in "${BODY_PARAMS[@]}"; do
+    BODY_PARAM_ARGS+=(-d "$param")
+done
+
+RESPONSE=$(curl -X "$HTTP_METHOD" --header "Authorization: Bearer ${TOKEN}" "${CONTENT_TYPE_HEADER[@]}" "${BODY_PARAM_ARGS[@]}" "$FINAL_URL" | jq '.')
 
 # Display the response and save to file
 echo "$RESPONSE"

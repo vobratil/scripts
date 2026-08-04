@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Usage: source ./prepare-testing.sh [SERVER_URL] [CONSOLE_PASSWORD] [-o]
+# Usage: source ./prepare-testing.sh [SERVER_URL] [CONSOLE_PASSWORD] [-o] [-u USER] [-p PASSWORD]
 
 get_client_id_and_secret() {
     OIDC_RAW=$(oc get secret oidc-cli -o json 2>&1)
@@ -75,12 +75,15 @@ else
     CONSOLE_PASSWORD="$2"
 fi
 
-# Check for optional -o flag
-if [[ "$*" == *"-o"* ]]; then
-    PLAYWRIGHT_PASSWORD="admin123456"
-else
-    PLAYWRIGHT_PASSWORD="Admin@123"
-fi
+# Parse optional flags
+PLAYWRIGHT_PASSWORD="Admin@123"
+for ((i=1; i<=$#; i++)); do
+    case "${!i}" in
+        -o) PLAYWRIGHT_PASSWORD="admin123456" ;;
+        -u) i=$((i+1)); AUTH_USER_OVERRIDE="${!i}" ;;
+        -p) i=$((i+1)); AUTH_PASSWORD_OVERRIDE="${!i}" ;;
+    esac
+done
 
 # Only get the OIDC client and secret if SERVER_URL is set and CONSOLE_PASSWORD is provided
 if [[ $# -gt 1 ]]; then
@@ -110,9 +113,9 @@ export TRUSTIFY_UI_URL
 TRUSTIFY_API_URL=$SERVER_URL
 export TRUSTIFY_API_URL
 export AUTH_REQUIRED
-PLAYWRIGHT_AUTH_USER="admin"
+PLAYWRIGHT_AUTH_USER="${AUTH_USER_OVERRIDE:-admin}"
 export PLAYWRIGHT_AUTH_USER
-PLAYWRIGHT_AUTH_PASSWORD="$PLAYWRIGHT_PASSWORD"
+PLAYWRIGHT_AUTH_PASSWORD="${AUTH_PASSWORD_OVERRIDE:-$PLAYWRIGHT_PASSWORD}"
 export PLAYWRIGHT_AUTH_PASSWORD
 PLAYWRIGHT_AUTH_CLIENT_ID=$(echo "$OIDC_OUTPUT" | sed -n '1p' | sed 's/^[^=]*=//')
 SECOND_LINE=$(echo "$OIDC_OUTPUT" | sed -n '2p' | sed 's/^[^=]*=//')
